@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myfingoal — Load Test Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0e1a;
+    --surface:  #111827;
+    --surface2: #1a2235;
+    --border:   #1e2d45;
+    --green:    #00e5a0;
+    --green-dim:#00a872;
+    --blue:     #3b82f6;
+    --amber:    #f59e0b;
+    --red:      #ef4444;
+    --cyan:     #06b6d4;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; }
+
+  header {
+    border-bottom:1px solid var(--border);
+    padding:2rem 3rem;
+    display:flex; justify-content:space-between; align-items:flex-end;
+    background:linear-gradient(135deg,#0d1b2e 0%,#0a0e1a 60%);
+  }
+  .brand-name { font-size:1.6rem; font-weight:800; letter-spacing:-0.03em; color:white; }
+  .brand-name span { color:var(--green); }
+  .brand-sub { font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-top:0.25rem; }
+  .header-meta { text-align:right; font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted); line-height:1.8; }
+  .status-badge {
+    display:inline-block;
+    background:rgba(0,229,160,0.12); border:1px solid var(--green-dim); color:var(--green);
+    padding:0.2rem 0.75rem; border-radius:2px;
+    font-family:'JetBrains Mono',monospace; font-size:0.7rem; font-weight:600;
+    letter-spacing:0.12em; text-transform:uppercase;
+  }
+  .status-badge.fail { background:rgba(239,68,68,0.12); border-color:#b91c1c; color:var(--red); }
+
+  main { padding:2.5rem 3rem; max-width:1400px; margin:0 auto; }
+  section { margin-bottom:3rem; }
+  .section-label { font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--green); margin-bottom:0.6rem; }
+  .section-title { font-size:1.4rem; font-weight:700; color:white; margin-bottom:1.5rem; letter-spacing:-0.02em; }
+  .divider { height:1px; background:var(--border); margin:2.5rem 0; }
+
+  .cards-grid { display:grid; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:2rem; }
+  .cards-grid.four { grid-template-columns:repeat(4,1fr); }
+  .cards-grid.three { grid-template-columns:repeat(3,1fr); }
+
+  .card { background:var(--surface); padding:1.5rem; position:relative; overflow:hidden; }
+  .card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--green); opacity:0.6; }
+  .card.amber::before { background:var(--amber); }
+  .card.blue::before  { background:var(--blue); }
+  .card.cyan::before  { background:var(--cyan); }
+  .card.red::before   { background:var(--red); }
+  .card-label { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.6rem; }
+  .card-value { font-size:2rem; font-weight:800; letter-spacing:-0.04em; color:var(--green); line-height:1; }
+  .card.amber .card-value { color:var(--amber); }
+  .card.blue  .card-value { color:var(--blue); }
+  .card.cyan  .card-value { color:var(--cyan); }
+  .card.red   .card-value { color:var(--red); }
+  .card-sub { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--muted); margin-top:0.4rem; }
+
+  .charts-2col { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+  .chart-box { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:1.5rem; }
+  .chart-box.wide { grid-column:1/-1; }
+  .chart-title { font-size:0.85rem; font-weight:700; color:white; margin-bottom:0.3rem; }
+  .chart-sub { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted); margin-bottom:1.2rem; }
+  .chart-wrap { position:relative; height:240px; }
+
+  table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  thead tr { background:var(--surface2); border-bottom:2px solid var(--border); }
+  th { padding:0.85rem 1rem; text-align:left; font-family:'JetBrains Mono',monospace; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); font-weight:600; }
+  tbody tr { border-bottom:1px solid var(--border); }
+  tbody tr:hover { background:var(--surface2); }
+  td { padding:0.85rem 1rem; color:var(--text); }
+  td:first-child { font-weight:600; }
+  .mono { font-family:'JetBrains Mono',monospace; font-size:0.78rem; }
+  .green { color:var(--green); font-weight:600; }
+  .amber { color:var(--amber); font-weight:600; }
+  .red   { color:var(--red);   font-weight:600; }
+  .muted { color:var(--muted); }
+
+  .note { background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.25); border-left:3px solid var(--amber); border-radius:4px; padding:1rem 1.2rem; font-family:'JetBrains Mono',monospace; font-size:0.74rem; color:#c9a857; line-height:1.6; }
+
+  footer { border-top:1px solid var(--border); padding:1.5rem 3rem; display:flex; justify-content:space-between; align-items:center; font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--muted); }
+  footer a { color:var(--green); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand-name">my<span>fin</span>goal</div>
+    <div class="brand-sub">Performance Test Report · Load Test · 02-load.js</div>
+  </div>
+  <div class="header-meta">
+    <div><span class="status-badge ">PASSED</span></div>
+    <div style="margin-top:0.5rem">Generated: 14/05/2026, 11:44:13 pm</div>
+    <div>Duration: 3 min 58 sec · Max VUs: 20</div>
+    <div>Target: http://localhost:8000 (FastAPI + uvicorn)</div>
+    <div style="margin-top:0.3rem"><a href="https://imonburagohain.grafana.net/a/k6-app/runs/7534926" target="_blank">→ View in Grafana Cloud</a></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- SECTION 1: SUMMARY CARDS -->
+  <section>
+    <div class="section-label">01 — Summary</div>
+    <div class="section-title">Load test — 1,765 requests · 3 min 58 sec</div>
+    <div class="cards-grid four">
+      <div class="card">
+        <div class="card-label">Total Requests</div>
+        <div class="card-value">1.8k</div>
+        <div class="card-sub">Avg 7.4 req/s · Peak 9.9 req/s</div>
+      </div>
+      <div class="card ">
+        <div class="card-label">Error Rate</div>
+        <div class="card-value">0.00%</div>
+        <div class="card-sub">Zero failures</div>
+      </div>
+      <div class="card blue">
+        <div class="card-label">Avg Response</div>
+        <div class="card-value">68ms</div>
+        <div class="card-sub">p90: 104ms</div>
+      </div>
+      <div class="card amber">
+        <div class="card-label">p95 Response</div>
+        <div class="card-value">119ms</div>
+        <div class="card-sub">p99: 163ms · Max: 222ms</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 2: RESPONSE TIME CHARTS -->
+  <section>
+    <div class="section-label">02 — Response Time</div>
+    <div class="section-title">Latency over test duration</div>
+    <div class="charts-2col">
+      <div class="chart-box wide">
+        <div class="chart-title">Response Time &amp; Virtual Users — Timeline</div>
+        <div class="chart-sub">avg and p95 response time vs VU ramp curve</div>
+        <div class="chart-wrap">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 3: PER-ENDPOINT BREAKDOWN -->
+  <section>
+    <div class="section-label">03 — Per-Endpoint Breakdown</div>
+    <div class="section-title">Property Owner · First Home Buyer · Smart Renter</div>
+    <div class="charts-2col" style="margin-bottom:1.5rem">
+      <div class="chart-box">
+        <div class="chart-title">Avg Response by Endpoint</div>
+        <div class="chart-sub">average response time per calculator</div>
+        <div class="chart-wrap">
+          <canvas id="endpointAvgChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">P95 Response by Endpoint</div>
+        <div class="chart-sub">95th percentile response time per calculator</div>
+        <div class="chart-wrap">
+          <canvas id="endpointP95Chart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+      <table>
+        <thead><tr>
+          <th>Calculator</th><th>Endpoint</th><th>Requests</th>
+          <th>Min</th><th>Avg</th><th>P95</th><th>Error Rate</th>
+        </tr></thead>
+        <tbody>
+    <tr>
+      <td>Smart Renter</td>
+      <td class="mono muted">http://localhost:8000/api/calculate-renter</td>
+      <td class="mono muted">319</td>
+      <td class="mono green">42ms</td>
+      <td class="mono green">84ms</td>
+      <td class="mono green">136ms</td>
+      <td class="mono green">0.00%</td>
+    </tr>
+  
+    <tr>
+      <td>Property Owner</td>
+      <td class="mono muted">http://localhost:8000/api/calculate</td>
+      <td class="mono muted">914</td>
+      <td class="mono green">35ms</td>
+      <td class="mono green">82ms</td>
+      <td class="mono green">124ms</td>
+      <td class="mono green">0.00%</td>
+    </tr>
+  
+    <tr>
+      <td>First Home Buyer</td>
+      <td class="mono muted">http://localhost:8000/api/calculate-fhb</td>
+      <td class="mono muted">532</td>
+      <td class="mono green">11ms</td>
+      <td class="mono green">34ms</td>
+      <td class="mono green">87ms</td>
+      <td class="mono green">0.00%</td>
+    </tr>
+  </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  
+    <section>
+      <div class="section-label">04 — System Resource Usage</div>
+      <div class="section-title">CPU &amp; memory during test run</div>
+      <div class="cards-grid four">
+        <div class="card amber">
+          <div class="card-label">CPU Peak</div>
+          <div class="card-value">23.3%</div>
+          <div class="card-sub">Avg 8.8% · Min 2.1%</div>
+        </div>
+        <div class="card blue">
+          <div class="card-label">RAM Peak</div>
+          <div class="card-value">51.2%</div>
+          <div class="card-sub">Avg 50.7% · Min 50.0%</div>
+        </div>
+        <div class="card cyan">
+          <div class="card-label">FastAPI RAM</div>
+          <div class="card-value">23MB</div>
+          <div class="card-sub">Constant across entire test</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Memory Leak</div>
+          <div class="card-value">None</div>
+          <div class="card-sub">RAM variation ±1.2%</div>
+        </div>
+      </div>
+      <div class="chart-box wide" style="margin-top:1.5rem">
+        <div class="chart-title">CPU &amp; RAM — Test Timeline</div>
+        <div class="chart-sub">sampled every 3s alongside k6 test run</div>
+        <div class="chart-wrap">
+          <canvas id="systemChart"></canvas>
+        </div>
+      </div>
+      <div class="note" style="margin-top:1rem">
+        ⚠ FastAPI process CPU shows 0.0% — uvicorn --reload spawns worker child processes. psutil tracked the parent PID; actual computation runs in workers. System-wide CPU figures above accurately reflect total machine load.
+      </div>
+    </section>
+    <div class="divider"></div>
+  
+
+  <!-- SECTION 5: THRESHOLDS -->
+  <section>
+    <div class="section-label">05 — Threshold Results</div>
+    <div class="section-title">Pass / fail criteria evaluation</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+      <table>
+        <thead><tr><th>Threshold</th><th>Condition</th><th>Result</th></tr></thead>
+        <tbody>
+    <tr>
+      <td class="mono">http_req_failed</td>
+      <td class="mono muted">rate < 1%</td>
+      <td class="mono green">✓ 0.00%</td>
+    </tr>
+  
+    <tr>
+      <td class="mono">http_req_duration p(95)</td>
+      <td class="mono muted">< 2000ms</td>
+      <td class="mono green">✓ 119ms</td>
+    </tr>
+  
+    <tr>
+      <td class="mono">http_req_duration p(99)</td>
+      <td class="mono muted">< 5000ms</td>
+      <td class="mono green">✓ 163ms</td>
+    </tr>
+  
+    <tr>
+      <td class="mono">SR: status 200</td>
+      <td class="mono muted">error rate = 0%</td>
+      <td class="mono green">✓ 0.00%</td>
+    </tr>
+  
+    <tr>
+      <td class="mono">PO: status 200</td>
+      <td class="mono muted">error rate = 0%</td>
+      <td class="mono green">✓ 0.00%</td>
+    </tr>
+  
+    <tr>
+      <td class="mono">FHB: status 200</td>
+      <td class="mono muted">error rate = 0%</td>
+      <td class="mono green">✓ 0.00%</td>
+    </tr>
+  </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div>myfingoal Performance Test Suite · k6 + Grafana Cloud · Generated 14/05/2026</div>
+  <div><a href="https://imonburagohain.grafana.net/a/k6-app/runs/7534926" target="_blank">→ View live in Grafana Cloud</a></div>
+</footer>
+
+<script>
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.borderColor = '#1e2d45';
+  Chart.defaults.font.family = "'JetBrains Mono', monospace";
+  Chart.defaults.font.size = 11;
+
+  const GREEN = '#00e5a0';
+  const AMBER = '#f59e0b';
+  const BLUE  = '#3b82f6';
+  const CYAN  = '#06b6d4';
+  const RED   = '#ef4444';
+
+  const responseTS = [{"t":"00:00","avg":60,"p95":91},{"t":"00:15","avg":71,"p95":112},{"t":"00:30","avg":73,"p95":125},{"t":"00:45","avg":70,"p95":122},{"t":"01:00","avg":67,"p95":129},{"t":"01:15","avg":67,"p95":108},{"t":"01:30","avg":64,"p95":115},{"t":"01:45","avg":68,"p95":118},{"t":"02:00","avg":72,"p95":141},{"t":"02:15","avg":69,"p95":130},{"t":"02:30","avg":75,"p95":156},{"t":"02:45","avg":63,"p95":100},{"t":"03:00","avg":66,"p95":115},{"t":"03:15","avg":62,"p95":103},{"t":"03:30","avg":64,"p95":121},{"t":"03:45","avg":62,"p95":100}];
+  const vuTS       = [{"t":"00:00","vus":5},{"t":"00:15","vus":10},{"t":"00:30","vus":14},{"t":"00:45","vus":19},{"t":"01:00","vus":20},{"t":"01:15","vus":20},{"t":"01:30","vus":20},{"t":"01:45","vus":20},{"t":"02:00","vus":20},{"t":"02:15","vus":20},{"t":"02:30","vus":20},{"t":"02:45","vus":20},{"t":"03:00","vus":20},{"t":"03:15","vus":16},{"t":"03:30","vus":11},{"t":"03:45","vus":6},{"t":"04:00","vus":1}];
+  const cpuTS      = [{"t":"23:07:43","cpu":12.7,"ram":51},{"t":"23:07:47","cpu":9,"ram":51.1},{"t":"23:07:52","cpu":13,"ram":51},{"t":"23:07:56","cpu":10.8,"ram":51},{"t":"23:08:00","cpu":9.3,"ram":51},{"t":"23:08:04","cpu":10.3,"ram":51},{"t":"23:08:08","cpu":12.9,"ram":51},{"t":"23:08:12","cpu":9.4,"ram":50.9},{"t":"23:08:16","cpu":9.6,"ram":50.9},{"t":"23:08:20","cpu":9.6,"ram":51},{"t":"23:08:24","cpu":8.9,"ram":51},{"t":"23:08:28","cpu":13.2,"ram":50.9},{"t":"23:08:32","cpu":16.1,"ram":50.9},{"t":"23:08:36","cpu":9.3,"ram":50.9},{"t":"23:08:40","cpu":9.6,"ram":50.9},{"t":"23:08:44","cpu":10.9,"ram":50.9},{"t":"23:08:48","cpu":13.3,"ram":50.9},{"t":"23:08:52","cpu":14.3,"ram":50.9},{"t":"23:08:56","cpu":12.2,"ram":50.9},{"t":"23:09:00","cpu":9.7,"ram":50.9},{"t":"23:09:04","cpu":11.1,"ram":50.9},{"t":"23:09:08","cpu":8.8,"ram":50.9},{"t":"23:09:12","cpu":15.9,"ram":50.9},{"t":"23:09:16","cpu":12.3,"ram":50.9},{"t":"23:09:20","cpu":16.7,"ram":50.8},{"t":"23:09:24","cpu":10.6,"ram":50.8},{"t":"23:09:28","cpu":11.6,"ram":50.9},{"t":"23:09:32","cpu":13.2,"ram":50.9},{"t":"23:09:36","cpu":12,"ram":50.9},{"t":"23:09:40","cpu":15,"ram":50.9},{"t":"23:09:44","cpu":9.5,"ram":50.9},{"t":"23:09:48","cpu":9.3,"ram":50.9},{"t":"23:09:52","cpu":15.4,"ram":50.9},{"t":"23:09:56","cpu":11.2,"ram":51},{"t":"23:10:00","cpu":9.2,"ram":51},{"t":"23:10:04","cpu":13,"ram":51},{"t":"23:10:08","cpu":12,"ram":50.9},{"t":"23:10:12","cpu":12.3,"ram":50.9},{"t":"23:10:16","cpu":17.4,"ram":50.9},{"t":"23:10:20","cpu":10.6,"ram":51},{"t":"23:10:24","cpu":11.6,"ram":51},{"t":"23:10:28","cpu":13.1,"ram":51},{"t":"23:10:32","cpu":12.6,"ram":50.9},{"t":"23:10:36","cpu":9.3,"ram":51},{"t":"23:10:40","cpu":14.2,"ram":50.9},{"t":"23:10:44","cpu":13.2,"ram":50.9},{"t":"23:10:48","cpu":10.4,"ram":50.9},{"t":"23:10:52","cpu":9.9,"ram":50.9},{"t":"23:10:56","cpu":10.7,"ram":51},{"t":"23:11:01","cpu":6.1,"ram":50.9},{"t":"23:11:05","cpu":14,"ram":50.9},{"t":"23:11:09","cpu":12.7,"ram":51.1},{"t":"23:11:13","cpu":13,"ram":51.1},{"t":"23:11:17","cpu":6.4,"ram":51.1},{"t":"23:11:21","cpu":23.3,"ram":51.1},{"t":"23:11:25","cpu":7,"ram":51.2},{"t":"23:11:29","cpu":7.2,"ram":51.2},{"t":"23:11:33","cpu":9.1,"ram":51.1},{"t":"23:11:37","cpu":7.9,"ram":51.2},{"t":"23:11:41","cpu":6.2,"ram":51.1},{"t":"23:11:45","cpu":6.2,"ram":51.1},{"t":"23:11:49","cpu":6.4,"ram":51.1},{"t":"23:11:53","cpu":3.3,"ram":50.9},{"t":"23:11:57","cpu":11.5,"ram":51},{"t":"23:12:01","cpu":4.1,"ram":51},{"t":"23:12:05","cpu":3.5,"ram":51},{"t":"23:12:09","cpu":3.5,"ram":51},{"t":"23:12:13","cpu":4.1,"ram":50.9},{"t":"23:12:17","cpu":7.4,"ram":50.2},{"t":"23:12:21","cpu":8.2,"ram":50.2},{"t":"23:12:25","cpu":8.8,"ram":50.1},{"t":"23:12:29","cpu":3.5,"ram":50.1},{"t":"23:12:33","cpu":4.6,"ram":50.1},{"t":"23:12:37","cpu":2.6,"ram":50.1},{"t":"23:12:41","cpu":3.1,"ram":50.1},{"t":"23:12:45","cpu":2.7,"ram":50.1},{"t":"23:12:49","cpu":2.3,"ram":50.1},{"t":"23:12:53","cpu":2.5,"ram":50.1},{"t":"23:12:57","cpu":2.9,"ram":50.1},{"t":"23:13:01","cpu":3.1,"ram":50.1},{"t":"23:13:05","cpu":3.1,"ram":50.1},{"t":"23:13:09","cpu":3.9,"ram":50.1},{"t":"23:13:13","cpu":5.3,"ram":50.1},{"t":"23:13:17","cpu":4.5,"ram":50.1},{"t":"23:13:21","cpu":4.3,"ram":50.1},{"t":"23:13:25","cpu":4.1,"ram":50.1},{"t":"23:13:29","cpu":4.1,"ram":50.1},{"t":"23:13:33","cpu":3.7,"ram":50},{"t":"23:13:37","cpu":7,"ram":50},{"t":"23:13:41","cpu":3.5,"ram":50},{"t":"23:13:45","cpu":3.5,"ram":50},{"t":"23:13:49","cpu":3.3,"ram":50},{"t":"23:13:53","cpu":3.1,"ram":50},{"t":"23:13:57","cpu":2.1,"ram":50},{"t":"23:14:01","cpu":2.5,"ram":50},{"t":"23:14:05","cpu":5.7,"ram":50},{"t":"23:14:10","cpu":3.7,"ram":50},{"t":"23:14:14","cpu":4.1,"ram":50.1},{"t":"23:14:18","cpu":23.1,"ram":50.2},{"t":"23:14:22","cpu":6.4,"ram":50.1}];
+  const endpoints  = [{"url":"http://localhost:8000/api/calculate-renter","count":319,"min":42.2,"avg":84.4,"p95":136.2,"errorRate":0},{"url":"http://localhost:8000/api/calculate","count":914,"min":35.2,"avg":81.6,"p95":123.6,"errorRate":0},{"url":"http://localhost:8000/api/calculate-fhb","count":532,"min":10.7,"avg":34,"p95":87.1,"errorRate":0}];
+
+  // Helper: friendly label from URL
+  function epLabel(url) {
+    if (url.includes('calculate-fhb'))    return 'First Home Buyer';
+    if (url.includes('calculate-renter')) return 'Smart Renter';
+    if (url.includes('calculate'))        return 'Property Owner';
+    return url.split('/').pop();
+  }
+
+  // ── Timeline Chart ──
+  const timeLabels = responseTS.map(r => r.t);
+  new Chart(document.getElementById('timelineChart'), {
+    data: {
+      labels: timeLabels,
+      datasets: [
+        {
+          type: 'line', label: 'Avg Response (ms)',
+          data: responseTS.map(r => r.avg),
+          borderColor: AMBER, backgroundColor: 'rgba(245,158,11,0.08)',
+          fill: true, tension: 0.4, yAxisID: 'y', pointRadius: 0,
+        },
+        {
+          type: 'line', label: 'p95 Response (ms)',
+          data: responseTS.map(r => r.p95),
+          borderColor: BLUE, borderDash: [4,3],
+          fill: false, tension: 0.4, yAxisID: 'y', pointRadius: 0,
+        },
+        {
+          type: 'line', label: 'Virtual Users',
+          data: vuTS.map(v => v.vus),
+          borderColor: GREEN, backgroundColor: 'rgba(0,229,160,0.05)',
+          fill: true, tension: 0.3, yAxisID: 'y2', pointRadius: 0,
+          borderWidth: 1.5,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12 } } },
+      scales: {
+        x: { grid: { color: '#1e2d45' }, ticks: { color: '#64748b', maxTicksLimit: 12 } },
+        y: {
+          grid: { color: '#1e2d45' }, ticks: { color: '#64748b' },
+          title: { display: true, text: 'Response Time (ms)', color: '#475569' },
+          position: 'left',
+        },
+        y2: {
+          grid: { drawOnChartArea: false }, ticks: { color: '#475569' },
+          title: { display: true, text: 'Virtual Users', color: '#475569' },
+          position: 'right',
+        }
+      }
+    }
+  });
+
+  // ── Endpoint Avg Chart ──
+  const epLabels = endpoints.map(e => epLabel(e.url));
+  const epColours = [GREEN, BLUE, AMBER, CYAN];
+  new Chart(document.getElementById('endpointAvgChart'), {
+    type: 'bar',
+    data: {
+      labels: epLabels,
+      datasets: [{
+        label: 'Avg (ms)',
+        data: endpoints.map(e => Math.round(e.avg)),
+        backgroundColor: endpoints.map((_, i) => epColours[i % epColours.length] + 'cc'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e2d45' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: '#1e2d45' }, ticks: { color: '#64748b' },
+             title: { display: true, text: 'ms', color: '#475569' } }
+      }
+    }
+  });
+
+  // ── Endpoint P95 Chart ──
+  new Chart(document.getElementById('endpointP95Chart'), {
+    type: 'bar',
+    data: {
+      labels: epLabels,
+      datasets: [{
+        label: 'P95 (ms)',
+        data: endpoints.map(e => Math.round(e.p95)),
+        backgroundColor: endpoints.map((_, i) => epColours[i % epColours.length] + 'cc'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e2d45' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: '#1e2d45' }, ticks: { color: '#64748b' },
+             title: { display: true, text: 'ms', color: '#475569' } }
+      }
+    }
+  });
+
+  // ── System Chart (only if data present) ──
+  if (cpuTS.length > 0 && document.getElementById('systemChart')) {
+    new Chart(document.getElementById('systemChart'), {
+      data: {
+        labels: cpuTS.map(r => r.t),
+        datasets: [
+          {
+            type: 'line', label: 'CPU %',
+            data: cpuTS.map(r => r.cpu),
+            borderColor: AMBER, backgroundColor: 'rgba(245,158,11,0.08)',
+            fill: true, tension: 0.4, yAxisID: 'y', pointRadius: 0,
+          },
+          {
+            type: 'line', label: 'RAM %',
+            data: cpuTS.map(r => r.ram),
+            borderColor: CYAN, borderDash: [4,3],
+            fill: false, tension: 0.3, yAxisID: 'y2', pointRadius: 0,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12 } } },
+        scales: {
+          x: { grid: { color: '#1e2d45' }, ticks: { color: '#64748b', maxTicksLimit: 14 } },
+          y: {
+            grid: { color: '#1e2d45' }, ticks: { color: '#64748b' },
+            title: { display: true, text: 'CPU %', color: '#475569' },
+            position: 'left', min: 0, max: 100,
+          },
+          y2: {
+            grid: { drawOnChartArea: false }, ticks: { color: '#475569' },
+            title: { display: true, text: 'RAM %', color: '#475569' },
+            position: 'right', min: 0, max: 100,
+          }
+        }
+      }
+    });
+  }
+</script>
+</body>
+</html>
