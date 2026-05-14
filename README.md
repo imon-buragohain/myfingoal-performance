@@ -58,7 +58,7 @@ These are real results from the live FastAPI backend running on a local developm
 | System CPU peak | ~5% | ~15% | 41.8% |
 | FastAPI RAM | 4MB | 4MB | 4MB |
 
-**What the numbers tell you:**
+**What the numbers tell us:**
 
 Zero errors across 62,000+ requests across all three test types. RAM held completely flat at 4MB throughout the 13-minute stress test — no memory leaks. CPU climbed proportionally with load and recovered cleanly within 90 seconds of ramp-down. The system degrades gracefully under pressure rather than failing hard.
 
