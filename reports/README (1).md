@@ -8,9 +8,9 @@
 
 This project is a companion to [myfingoal-automation](https://github.com/imon-buragohain/myfingoal-automation) — the Playwright/Cucumber functional test framework built on the same application.
 
-Functional tests tell us whether the application works correctly. Performance tests tell us  whether it works at scale — how it behaves under concurrent load, where it degrades, and whether it recovers cleanly. Both matter. A system that produces correct results but collapses under ten simultaneous users isn't production-ready.
+Functional tests tell you whether the application works correctly. Performance tests tell you whether it works at scale — how it behaves under concurrent load, where it degrades, and whether it recovers cleanly. Both matter. A system that produces correct results but collapses under ten simultaneous users isn't production-ready.
 
-I built this framework for the same reason I built the functional one: most QA portfolios don't include performance testing at all, and the ones that do tend to use JMeter — a tool that generates XML config files, produces dated reports, and is genuinely difficult to version-control in a way that reads naturally to a reviewer. I wanted something that treated performance tests as real code, lived cleanly in GitHub, and produced reports on the fly.
+I built this framework for the same reason I built the functional one: most QA portfolios don't include performance testing at all, and the ones that do tend to use JMeter — a tool that generates XML config files, produces dated reports, and is genuinely difficult to version-control in a way that reads naturally to a reviewer. I wanted something that treated performance tests as real code, lived cleanly in GitHub, and produced reports worth showing to an employer.
 
 **k6** fits that description. Scripts are plain JavaScript, readable without explanation, version-controlled like any other source file. Results stream to **Grafana Cloud** in real time, producing shareable dashboards with response time graphs, VU ramp curves, and per-endpoint breakdowns — all from a free account.
 
@@ -109,7 +109,11 @@ myfingoal-performance/
 │   └── templates/
 │       └── report-template.js     ← HTML report template (Chart.js graphs)
 ├── reports/
-    └── samples/                   ← committed sample reports for reference
+│   └── samples/                   ← committed sample reports for reference
+└── .github/
+    └── workflows/
+        └── smoke.yml              ← runs smoke test on every push (1 VU, safe)
+```
 
 ---
 
@@ -188,6 +192,20 @@ The `collect-system-metrics.py` script tracks the FastAPI process by PID. Throug
 This is not a measurement error. `uvicorn --reload` spawns worker child processes at startup. The script correctly identifies the parent process PID, but the actual computation runs in the workers. System-wide CPU is the accurate measure of load — the FastAPI process column confirms the parent is alive but correctly shows no direct CPU work.
 
 This is the kind of thing you only discover by running the measurement and questioning the result. The system CPU figures are real and meaningful; the FastAPI CPU column is an architectural artefact of how uvicorn manages processes.
+
+---
+
+## What I learned building this
+
+**k6 scripts are real code, not config files.** Coming from JMeter, the difference is significant. A k6 script is JavaScript you can review in a pull request, diff against previous versions, and understand without opening a GUI. The weighted endpoint distribution, the think-time randomisation, the per-endpoint tagging — these are deliberate engineering decisions visible in the code.
+
+**Percentiles tell a different story to averages.** The load test average was 66ms — fast enough that you might not look further. The p99 was 188ms. Under stress, the average hit 815ms but the p95 was 1,930ms — meaning 5% of users were waiting nearly 2 seconds. Averages hide the tail. p95 and p99 are what users actually experience at the edges.
+
+**The breaking point matters more than the happy path.** Load tests confirm things work. Stress tests tell you where the limits are and — critically — whether the system recovers. A system that degrades gracefully and recovers cleanly is fundamentally different from one that requires a restart. The recovery stage of the stress test is not optional.
+
+**System metrics need a separate process.** k6 measures the network layer — what it sends, what comes back, how long it waits. It has no visibility into what the server is doing internally. CPU climbing from 5% to 41% under load, and RAM staying flat at 50.3% throughout, tells a story k6 alone cannot tell. Running `collect-system-metrics.py` in parallel is a two-terminal habit worth building.
+
+**Windows line endings will silently corrupt CSV parsing.** The system metrics CSV was written with `\r\n` line endings. Splitting on `\n` left `\r` attached to the last column header, making every row lookup return `undefined`. The data was correct; the parser was wrong. `raw.replace(/\r/g, '')` before splitting is now the first line of every CSV reader I write.
 
 ---
 

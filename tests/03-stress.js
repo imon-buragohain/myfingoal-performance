@@ -6,37 +6,42 @@ import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
 import { poPayload } from "../payloads/po-payload.js";
 import { fhbPayload } from "../payloads/fhb-payload.js";
 import { renterPayload } from "../payloads/renter-payload.js";
-import { standardThresholds } from "../config/thresholds.js";
 
-// Load test: simulates realistic concurrent usage.
-// Ramps to 20 VUs over 1 min, holds for 2 mins, ramps down over 1 min.
-// Each VU loops continuously through all 3 endpoints.
-// Purpose: confirm the API maintains acceptable response times
-// under expected normal traffic levels.
+// Stress test: pushes beyond expected load to find the breaking point.
+// Ramps aggressively to 100 VUs in stages.
+//  Degradation expected at some point — the goal is to find where,
+// and confirm the system recovers when load drops back.
+// Thresholds are deliberately more lenient — goal is to observe,
+// not just pass/fail at the same bar as the load test.
 export const options = {
     ext: {
     loadimpact: {
-      name: "myfingoal — Load Test",
+      name: "myfingoal — Stress Test",
     },
-  },  
+  },
     stages: [
-    { duration: "1m", target: 20 },   // ramp up to 20 users
-    { duration: "2m", target: 20 },   // hold at 20 users
-    { duration: "1m", target: 0  },   // ramp back down
+    { duration: "2m", target: 20  },  // warm up at normal load
+    { duration: "2m", target: 40  },  // push to 2x normal
+    { duration: "2m", target: 60  },  // push to 3x normal
+    { duration: "2m", target: 80  },  // push to 4x normal
+    { duration: "2m", target: 100 },  // push to 5x normal — likely breaking zone
+    { duration: "2m", target: 20  },  // recovery — does it come back?
+    { duration: "1m", target: 0   },  // ramp down
   ],
-  thresholds: standardThresholds,
+  thresholds: {
+    // Reduced thresholds to allow for expected degradation under stress
+    http_req_failed:   ["rate<0.10"],   // allow up to 10% errors
+    http_req_duration: ["p(95)<10000"], // allow up to 10s p95
+  },
 };
 
 const BASE_URL = "http://localhost:8000";
 const headers = { "Content-Type": "application/json" };
 
 export default function () {
-  // Each VU picks one endpoint per iteration based on a weighted distribution.
-  // PO is heaviest calculation so we weight it lower — reflects realistic usage.
   const rand = Math.random();
 
   if (rand < 0.5) {
-    // 50% of requests go to PO (most complex calculation)
     const res = http.post(
       `${BASE_URL}/api/calculate`,
       JSON.stringify(poPayload),
@@ -44,11 +49,10 @@ export default function () {
     );
     check(res, {
       "PO: status 200": (r) => r.status === 200,
-      "PO: under 2s":   (r) => r.timings.duration < 2000,
+      "PO: under 5s":   (r) => r.timings.duration < 5000,
     });
 
   } else if (rand < 0.80) {
-    // 30% of requests go to FHB
     const res = http.post(
       `${BASE_URL}/api/calculate-fhb`,
       JSON.stringify(fhbPayload),
@@ -56,11 +60,10 @@ export default function () {
     );
     check(res, {
       "FHB: status 200": (r) => r.status === 200,
-      "FHB: under 2s":   (r) => r.timings.duration < 2000,
+      "FHB: under 5s":   (r) => r.timings.duration < 5000,
     });
 
   } else {
-    // 20% of requests go to SR
     const res = http.post(
       `${BASE_URL}/api/calculate-renter`,
       JSON.stringify(renterPayload),
@@ -68,18 +71,17 @@ export default function () {
     );
     check(res, {
       "SR: status 200": (r) => r.status === 200,
-      "SR: under 2s":   (r) => r.timings.duration < 2000,
+      "SR: under 5s":   (r) => r.timings.duration < 5000,
     });
   }
 
-  // Think time between requests — simulates a user reading results
-  // before recalculating.
-  sleep(Math.random() * 2 + 1); // random 1–3 seconds
+  // Shorter think time than load test
+  sleep(Math.random() * 1 + 0.5); // random 0.5–1.5 seconds
 }
 
 export function handleSummary(data) {
   return {
-    "reports/load-latest.html": htmlReport(data),
+    "reports/stress-latest.html": htmlReport(data),
     stdout: textSummary(data, { indent: " ", enableColors: true }),
   };
 }
