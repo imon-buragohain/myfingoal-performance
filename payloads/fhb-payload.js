@@ -1,0 +1,23 @@
+export const fhbPayload = {
+  state: "QLD",
+  is_citizen: true,
+  is_pr: false,
+  is_couple: true,
+  annual_income: 95000,
+  monthly_income_net: 6200,
+  property_type: "new",
+  purchase_price: 650000,
+  estimated_contract_date: "2026-05-01",
+  current_savings: 80000,
+  monthly_savings_rate: 2000,
+  fhss_concessional: 15000,
+  fhss_non_concessional: 0,
+  fhss_years_contributed: 3,
+  marginal_tax_rate: 0.32,
+  parental_gift: 0,
+  current_rent_monthly: 2600,
+  council_rates_annual: 1800,
+  strata_fees_monthly: 0,
+  home_insurance_annual: 1500,
+  interest_rate: 0.058
+};

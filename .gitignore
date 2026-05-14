@@ -1,0 +1,3 @@
+reports/*.html
+# Keep reports/samples/ committed — that's your portfolio evidence
+!reports/samples/
